@@ -1,0 +1,209 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.Xml.Serialization;
+using System.IO;
+
+class MyException : ApplicationException       //自定义异常类
+{
+    private int IdNumber;
+    public MyException(String message, int id)
+        : base(message)
+    {
+        this.IdNumber = id;
+    }
+    public int getId()
+    {
+        return IdNumber;
+    }
+}
+
+[Serializable]
+public class Order                          //创建订单类
+{
+    public int OrderNumber;                 //订单号
+    public string CustomerName;             //客户 
+    public string GoodsName { set; get; }   //商品名称
+    public int GoodsNumber { set; get; }    //商品数量
+    public double GoodsPrice { set; get; }  //商品价格
+}
+
+[Serializable]
+public class OrderDetails : Order
+{
+    public OrderDetails(int OrderNumber, string CustomerName, string GoodsName, int GoodsNumber, double GoodsPrice)  //重载构造函数 对订单进行初始化
+    {
+        this.OrderNumber = OrderNumber;
+        this.CustomerName = CustomerName;
+        this.GoodsName = GoodsName;
+        this.GoodsNumber = GoodsNumber;
+        this.GoodsPrice = GoodsPrice;
+    }
+}
+
+[Serializable]
+public class OrderService
+{
+    List<OrderDetails> OrderList = new List<OrderDetails>();        //创建列表
+
+    public void regist(int num)                                     //异常处理
+    {
+        if (num < 0 || num > OrderList.Count)
+        {
+            Console.WriteLine("订单号" + num);
+            throw new MyException("订单不存在，不合理", 0);
+        }
+    }
+    public void manager()
+    {
+        try
+        {
+            regist(12);
+        }
+        catch (MyException e)
+        {
+            Console.WriteLine("失败，出错种类" + e.getId());
+        }
+        Console.WriteLine("结束");
+    }
+
+    public void AddOrder(OrderDetails last)                          //增加订单
+    {
+        OrderList.Add(last);
+    }
+
+    public void DeleteOrder(int Number)                              //删除订单
+    {
+        int m = 0;
+        for (int i = 0; i < OrderList.Count; i++)
+        {
+            if (Number == OrderList[i].OrderNumber)
+            {
+                OrderList.Remove(OrderList[i]);
+                m++;
+            }
+        }
+        if (m == 0)
+        {
+            Console.WriteLine("未查到该订单,删除失败");
+        }
+    }
+
+    public void ChangeOrder(int Number, int newNumber)               //修改订单
+    {
+        int m = 0;
+        for (int i = 0; i < OrderList.Count; i++)
+        {
+            if (Number == OrderList[i].OrderNumber)
+            {
+                OrderList[i].GoodsNumber = newNumber;
+                m++;
+            }
+        }
+        if (m == 0)
+        {
+            Console.WriteLine("未查找到该商品，修改失败");
+        }
+    }
+
+    public void SearchOrder1(int Number)                             //查询订单（根据订单号）
+    {
+        int m = 0;
+        for (int i = 0; i < OrderList.Count; i++)
+        {
+            if (Number == OrderList[i].OrderNumber)
+            {
+                Console.WriteLine(" 商品名称： " + OrderList[i].GoodsName +
+                                  " 商品数量： " + OrderList[i].GoodsNumber +
+                                  " 商品价格： " + OrderList[i].GoodsPrice);
+                m++;
+            }
+        }
+        if (m == 0)
+        {
+            Console.WriteLine("未找到该订单");
+        }
+    }
+
+    public void SearchOrder2(string Name)                         //查询订单（根据商品名称或客户名）
+    {
+        int m = 0;
+        for (int i = 0; i < OrderList.Count; i++)
+        {
+            if (Name == OrderList[i].CustomerName || Name == OrderList[i].GoodsName)
+            {
+                Console.WriteLine(" 商品名称： " + OrderList[i].GoodsName +
+                                  " 商品数量： " + OrderList[i].GoodsNumber +
+                                  " 商品价格： " + OrderList[i].GoodsPrice);
+                m++;
+            }
+        }
+        if (m == 0)
+        {
+            Console.WriteLine("未找到该订单");
+        }
+    }
+
+}
+
+
+public class TestClass
+{
+    static void Main()
+    {
+        OrderDetails First = new OrderDetails(01, "wx1", "Cheese", 1, 10);         //设置订单信息
+        OrderDetails Second = new OrderDetails(02, "wx2", "Bread", 1, 5);
+        OrderDetails Third = new OrderDetails(03, "wx3", "Milk", 2, 5);
+        OrderService Oporder = new OrderService();
+        Oporder.AddOrder(Third);                         //添加订单
+        Oporder.DeleteOrder(11);                         //删除订单
+        Oporder.ChangeOrder(11, 5);                      //修改订单
+        Oporder.SearchOrder2("wx21");                    //查找订单
+
+        OrderDetails[] arr = { First, Second, Third };           //筛选出订单金额大于1000的
+        var m = arr.Where(a => a.GoodsPrice > 1000);
+        Console.WriteLine(m);
+        var n = from x in arr                                     //按照商品名查找订单
+                select x.GoodsName;
+        foreach (string i in n)
+        {
+            Console.WriteLine(i);
+        }
+        var p = from w in arr                                     //按照顾客名查找订单
+                select w.CustomerName;
+        foreach (string c in p)
+        {
+            Console.WriteLine(c);
+        }
+
+        List<Order> orders = new List<Order>();
+        //orders.Add(First);
+        //orders.Add(Second);
+        //orders.Add(Third);
+        Export(orders, "Order.xml");
+        Import("Order.xml");
+    }
+
+    public static void Export(List<Order> or, string xmlFileName)
+    {
+        XmlSerializer xmlser = new XmlSerializer(typeof(List<Order>));  //Xml序列化
+        using (FileStream fs = new FileStream(xmlFileName, FileMode.Create))
+        {
+            xmlser.Serialize(fs, or);
+        }
+    }
+
+    public static void Import(string xmlFileName)
+    {
+        XmlSerializer xs = new XmlSerializer(typeof(List<Order>));  
+        using (FileStream fs = new FileStream(xmlFileName, FileMode.Open))
+        {
+            List<Order> p1 = (List<Order>)xs.Deserialize(fs);
+            p1.ForEach(p => Console.WriteLine(p.ToString()));
+        }
+    }
+}
